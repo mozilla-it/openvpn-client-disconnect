@@ -1,0 +1,6 @@
+[submodule "mozdef_client"]
+	path = mozdef_client
+	url = https://github.com/mozilla/mozdef_client.git
+[submodule "mozdef_client_config"]
+	path = mozdef_client_config
+	url = https://github.com/mozilla-it/mozdef_client_config.git
