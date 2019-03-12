@@ -3,7 +3,7 @@ PACKAGE := openvpn_client_disconnect
 
 
 rpm:
-	fpm -s python -t rpm --rpm-dist "$$(rpmbuild -E '%{?dist}' | sed -e 's#^\.##')" --iteration 1 setup.py
+	fpm -s python -t rpm --no-python-fix-name --rpm-dist "$$(rpmbuild -E '%{?dist}' | sed -e 's#^\.##')" --iteration 1 setup.py
 	@rm -rf build $(PACKAGE).egg-info
 
 clean:

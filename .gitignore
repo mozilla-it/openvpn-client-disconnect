@@ -1,5 +1,5 @@
 # RPMs that get built
-python-openvpn-client-disconnect-*.noarch.rpm
+openvpn-client-disconnect-*.noarch.rpm
 # The upstream library config files, just in case we're testing locally.
 mozdef_client_config.conf
 
