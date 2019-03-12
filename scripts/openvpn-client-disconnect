@@ -7,9 +7,15 @@ import sys
 from argparse import ArgumentParser
 import mozdef_client_config
 sys.dont_write_bytecode = True
+try:
+    # 2.7's module:
+    from ConfigParser import SafeConfigParser as ConfigParser
+except ImportError:
+    # 3's module:
+    from configparser import ConfigParser
 
 
-def log_to_mozdef(metrics):
+def log_to_mozdef(log_to_stdout, metrics):
     """
         Send the metrics we have, as a disconnect event, to mozdef
     """
@@ -33,6 +39,9 @@ def log_to_mozdef(metrics):
                       'bytesreceived': metrics['bytes_received'],
                       'success': 'true'}
     logger.send()
+    if log_to_stdout:
+        print logger.syslog_convert()
+
 
 def main():
     """
@@ -40,13 +49,40 @@ def main():
         Return True on success, False upon failure.
         Side effect is that we write to the output_filename.
     """
-    #parser = ArgumentParser(description='Args for client-disconnect')
-    #parser.add_argument('--conf', type=str, required=True,
-    #                    help='Config file',
-    #                    dest='conffile', default=None)
-    #parser.add_argument('output_filename', type=str,
-    #                    help='Filename to push config to')
-    #args = parser.parse_args()
+    parser = ArgumentParser(description='Args for client-disconnect')
+    parser.add_argument('--conf', type=str, required=True,
+                        help='Config file',
+                        dest='conffile', default=None)
+    args = parser.parse_args()
+
+    if args.conffile is not None:
+        # Reads slightly weird, this is intentional for parallelism
+        # with other code, and maybe having multiple conf files.
+        conf_file = [args.conffile]
+        config = ConfigParser()
+        for filename in conf_file:
+            if os.path.isfile(filename):
+                try:
+                    config.read(filename)
+                    break
+                except:  # pylint: disable=bare-except
+                    # This bare-except is due to 2.7
+                    # limitations in configparser.
+                    pass
+        else:
+            raise IOError('Config file not found')
+
+        # We use mozdef to log about activities.  However, for triage,
+        # it is in our interest to keep records, real-time, on the server.
+        # mozdef can do syslog, but that is a separate file from the vpn's
+        # activity log.  So, to put it all in one place, we can log to
+        # stdout.
+        if (config.has_section('client-disconnect') and
+                config.has_option('client-disconnect', 'log_to_stdout')):
+            log_to_stdout = config.getboolean('client-disconnect',
+                                              'log_to_stdout')
+        else:
+            log_to_stdout = True
 
     # common_name is an environmental variable passed in:
     # "The X509 common name of an authenticated client."
@@ -79,7 +115,7 @@ def main():
         'bytes_received': os.environ.get('bytes_received', ''),
     }
 
-    log_to_mozdef(metrics)
+    log_to_mozdef(log_to_stdout, metrics)
     return True
 
 
