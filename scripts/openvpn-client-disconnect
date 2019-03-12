@@ -9,15 +9,37 @@ import mozdef_client_config
 sys.dont_write_bytecode = True
 
 
+def log_to_mozdef(metrics):
+    """
+        Send the metrics we have, as a disconnect event, to mozdef
+    """
+    logger = mozdef_client_config.ConfigedMozDefEvent()
+    # While 'Authorization' might seem more correct (we are layering
+    # access upon a user after they have been authenticated), we are
+    # asked to put all login-related info under the category of
+    # 'Authentication'.  So, don't change this without an EIS consult.
+    logger.category = 'Authentication'
+    logger.source = 'openvpn'
+    logger.tags = ['vpn', 'disconnect']
+
+    logger.summary = ('SUCCESS: VPN disconnection for '
+                      '{}'.format(metrics['common_name']))
+    logger.details = {'sourceipaddress': metrics['client_public_ip'],
+                      'sourceport': metrics['client_port'],
+                      'vpnip': metrics['client_private_ip'],
+                      'username': metrics['common_name'],
+                      'connectionduration': metrics['time_duration'],
+                      'bytessent': metrics['bytes_sent'],
+                      'bytesreceived': metrics['bytes_received'],
+                      'success': 'true'}
+    logger.send()
+
 def main():
     """
         Print the config that should go to each client into a file.
         Return True on success, False upon failure.
         Side effect is that we write to the output_filename.
     """
-    # We will push routes/configs to the configuration filename
-    # we're given as the LAST argument in reality there's usually
-    # only one arg, but, that's the spec.
     #parser = ArgumentParser(description='Args for client-disconnect')
     #parser.add_argument('--conf', type=str, required=True,
     #                    help='Config file',
@@ -44,36 +66,20 @@ def main():
         print('No trusted_ip environment variable provided.')
         return False
 
-    # Bundle up the data we're going to report.  Safe the values
-    # in case any are missing.
-    client_public_ip = trusted_ip
-    client_port = os.environ.get('trusted_port', '')
-    client_private_ip = os.environ.get('ifconfig_pool_remote_ip', '')
-    # Reporting numbers
-    time_duration = os.environ.get('time_duration', '')
-    bytes_sent = os.environ.get('bytes_sent', '')
-    bytes_received = os.environ.get('bytes_received', '')
+    metrics = {
+        # Bundle up the data we're going to report.  Safe the values
+        # in case any are missing.
+        'common_name': usercn,
+        'client_public_ip': trusted_ip,
+        'client_port': os.environ.get('trusted_port', ''),
+        'client_private_ip': os.environ.get('ifconfig_pool_remote_ip', ''),
+        # Reporting numbers
+        'time_duration': os.environ.get('time_duration', ''),
+        'bytes_sent': os.environ.get('bytes_sent', ''),
+        'bytes_received': os.environ.get('bytes_received', ''),
+    }
 
-    logger = mozdef_client_config.ConfigedMozDefEvent()
-    # While 'Authorization' might seem more correct (we are layering
-    # access upon a user after they have been authenticated), we are
-    # asked to put all login-related info under the category of
-    # 'Authentication'.  So, don't change this without an EIS consult.
-    logger.category = 'Authentication'
-    logger.source = 'openvpn'
-    logger.tags = ['vpn', 'disconnect']
-
-    logger.summary = ('SUCCESS: VPN disconnection for '
-                      '{}'.format(usercn))
-    logger.details = {'sourceipaddress': client_public_ip,
-                      'sourceport': client_port,
-                      'vpnip': client_private_ip,
-                      'username': usercn,
-                      'connectionduration': time_duration,
-                      'bytessent': bytes_sent,
-                      'bytesreceived': bytes_received,
-                      'success': 'true'}
-    logger.send()
+    log_to_mozdef(metrics)
     return True
 
 
