@@ -4,21 +4,69 @@
 """
 import os
 import sys
+import ast
+import time
+import json
 from argparse import ArgumentParser
 import mozdef_client_config
 sys.dont_write_bytecode = True
 try:
     # 2.7's module:
     from ConfigParser import SafeConfigParser as ConfigParser
-except ImportError:
+    from ConfigParser import NoOptionError, NoSectionError
+except ImportError:  # pragma: no cover
     # 3's module:
     from configparser import ConfigParser
+    from configparser import NoOptionError, NoSectionError
 
 
-def log_to_mozdef(log_to_stdout, metrics):
+ALWAYS_SHARE_METRICS = set(['common_name', 'time_unix'])
+NEVER_SHARE_METRICS = set(['config', 'daemon', 'daemon_log_redirect',
+                           'daemon_pid', 'daemon_start_time', 'verb',
+                           'script_context', 'auth_control_file',
+                           'password'])
+
+def log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested):
     """
-        Send the metrics we have, as a disconnect event, to mozdef
+        Using the set of metrics that we are requested to log, log
+        the wad of variables to discrete files in a spool directory.
     """
+    existing_requested_metrics = set(os.environ.keys()) & metrics_requested
+    safe_requested_metrics = existing_requested_metrics - NEVER_SHARE_METRICS
+    metrics_to_log = safe_requested_metrics | ALWAYS_SHARE_METRICS
+
+    directory_log = {x:os.environ.get(x, '') for x in metrics_to_log}
+
+    if metrics_log_dir:
+        epoch_seconds = int(directory_log.get('time_unix'))
+        date = time.strftime('%Y%m%d%H%M%S', time.gmtime(epoch_seconds))
+        filename = 'log.{usercn}.{date}.json'.format(usercn=usercn,
+                                                     date=date)
+        # Future tweak: ability to change the filename structure?
+        outfile = '{path}/{filename}'.format(path=metrics_log_dir,
+                                             filename=filename)
+        buf = '{}\n'.format(json.dumps(directory_log,
+                                       sort_keys=True,
+                                       indent=2))
+        with open(outfile, 'w') as outhandle:
+            outhandle.write(buf)
+
+
+def log_to_mozdef(usercn, log_to_stdout):
+    """
+        Gather the metrics we have in the environment,
+        send a disconnect event to mozdef.
+        Maybe also log it to stdout.
+    """
+    quick_metrics = {'sourceipaddress': os.environ.get('trusted_ip', ''),
+                     'sourceport': os.environ.get('trusted_port', ''),
+                     'vpnip': os.environ.get('ifconfig_pool_remote_ip', ''),
+                     'username': usercn,
+                     'connectionduration': os.environ.get('time_duration', ''),
+                     'bytessent': os.environ.get('bytes_sent', ''),
+                     'bytesreceived': os.environ.get('bytes_received', ''),
+                     'success': 'true'}
+
     logger = mozdef_client_config.ConfigedMozDefEvent()
     # While 'Authorization' might seem more correct (we are layering
     # access upon a user after they have been authenticated), we are
@@ -29,15 +77,8 @@ def log_to_mozdef(log_to_stdout, metrics):
     logger.tags = ['vpn', 'disconnect']
 
     logger.summary = ('SUCCESS: VPN disconnection for '
-                      '{}'.format(metrics['common_name']))
-    logger.details = {'sourceipaddress': metrics['client_public_ip'],
-                      'sourceport': metrics['client_port'],
-                      'vpnip': metrics['client_private_ip'],
-                      'username': metrics['common_name'],
-                      'connectionduration': metrics['time_duration'],
-                      'bytessent': metrics['bytes_sent'],
-                      'bytesreceived': metrics['bytes_received'],
-                      'success': 'true'}
+                      '{}'.format(usercn))
+    logger.details = quick_metrics
     logger.send()
     if log_to_stdout:
         print logger.syslog_convert()
@@ -77,12 +118,29 @@ def main():
         # mozdef can do syslog, but that is a separate file from the vpn's
         # activity log.  So, to put it all in one place, we can log to
         # stdout.
-        if (config.has_section('client-disconnect') and
-                config.has_option('client-disconnect', 'log_to_stdout')):
+        try:
             log_to_stdout = config.getboolean('client-disconnect',
-                                              'log_to_stdout')
-        else:
-            log_to_stdout = True
+                                              'log-to-stdout')
+        except (NoOptionError, NoSectionError):  # pragma: no cover
+            log_to_stdout = False
+
+        try:
+            metrics_log_dir = config.get('client-disconnect',
+                                         'metrics-log-dir')
+        except (NoOptionError, NoSectionError):  # pragma: no cover
+            metrics_log_dir = ''
+        if not (os.path.isdir(metrics_log_dir) and
+                os.access(metrics_log_dir, os.W_OK)):
+            metrics_log_dir = None
+
+        try:
+            metrics_requested = set(ast.literal_eval(
+                config.get('client-disconnect', 'metrics')))
+        except:  # pragma: no cover  pylint: disable=bare-except
+            # This bare-except is due to 2.7 limitations in configparser.
+            metrics_requested = set()
+        if not isinstance(metrics_requested, set):  # pragma: no cover
+            metrics_requested = set()
 
     # common_name is an environmental variable passed in:
     # "The X509 common name of an authenticated client."
@@ -102,20 +160,8 @@ def main():
         print('No trusted_ip environment variable provided.')
         return False
 
-    mozdef_metrics = {
-        # Bundle up the data we're going to report.  Safe the values
-        # in case any are missing.
-        'common_name': usercn,
-        'client_public_ip': trusted_ip,
-        'client_port': os.environ.get('trusted_port', ''),
-        'client_private_ip': os.environ.get('ifconfig_pool_remote_ip', ''),
-        # Reporting numbers
-        'time_duration': os.environ.get('time_duration', ''),
-        'bytes_sent': os.environ.get('bytes_sent', ''),
-        'bytes_received': os.environ.get('bytes_received', ''),
-    }
-
-    log_to_mozdef(log_to_stdout, mozdef_metrics)
+    log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested)
+    log_to_mozdef(usercn, log_to_stdout)
     return True
 
 
