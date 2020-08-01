@@ -68,11 +68,11 @@ def log_to_mozdef(usercn, log_to_stdout):
                      'success': 'true'}
 
     logger = mozdef_client_config.ConfigedMozDefEvent()
-    # While 'Authorization' might seem more correct (we are layering
+    # While 'authorization' might seem more correct (we are layering
     # access upon a user after they have been authenticated), we are
     # asked to put all login-related info under the category of
-    # 'Authentication'.  So, don't change this without an EIS consult.
-    logger.category = 'Authentication'
+    # 'authentication'.  So, don't change this without an EIS consult.
+    logger.category = 'authentication'
     logger.source = 'openvpn'
     logger.tags = ['vpn', 'disconnect']
 
