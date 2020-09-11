@@ -35,15 +35,18 @@ def git_version():
     return git_revision
 
 setup(
-    name='openvpn-client-disconnect',
+    name=NAME,
+    packages=['openvpn_client_disconnect'],
     version=VERSION,
-    author="Greg Cox",
-    author_email="gcox@mozilla.com",
+    author='Greg Cox',
+    author_email='gcox@mozilla.com',
     url="https://github.com/mozilla-it/openvpn-client-disconnect",
     description=("Script to report on disconnecting VPN clients\n" +
                  'This package is built upon commit ' + git_version()),
+    entry_points={
+        'console_scripts': ['openvpn-client-disconnect=openvpn_client_disconnect:main'],
+    },
     long_description=open('README.md').read(),
     license="MPL",
     install_requires=['mozdef-client-config'],
-    scripts=['scripts/openvpn-client-disconnect'],
 )

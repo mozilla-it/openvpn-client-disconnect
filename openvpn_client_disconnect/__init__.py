@@ -1,4 +1,3 @@
-#!/usr/bin/python
 """
     Script to report on disconnecting VPN clients
 """
@@ -11,13 +10,9 @@ from argparse import ArgumentParser
 import mozdef_client_config
 sys.dont_write_bytecode = True
 try:
-    # 2.7's module:
-    from ConfigParser import SafeConfigParser as ConfigParser
-    from ConfigParser import NoOptionError, NoSectionError
+    import configparser
 except ImportError:  # pragma: no cover
-    # 3's module:
-    from configparser import ConfigParser
-    from configparser import NoOptionError, NoSectionError
+    from six.moves import configparser
 
 
 ALWAYS_SHARE_METRICS = set(['common_name', 'time_unix'])
@@ -31,7 +26,7 @@ def log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested):
         Using the set of metrics that we are requested to log, log
         the wad of variables to discrete files in a spool directory.
     """
-    existing_requested_metrics = set(os.environ.keys()) & metrics_requested
+    existing_requested_metrics = set(os.environ.keys()) & set(metrics_requested)
     safe_requested_metrics = existing_requested_metrics - NEVER_SHARE_METRICS
     metrics_to_log = safe_requested_metrics | ALWAYS_SHARE_METRICS
 
@@ -81,10 +76,27 @@ def log_to_mozdef(usercn, log_to_stdout):
     logger.details = quick_metrics
     logger.send()
     if log_to_stdout:
-        print logger.syslog_convert()
+        print(logger.syslog_convert())
 
+def _ingest_config_from_file(conf_files):
+    """
+        pull in config variables from a system file
+    """
+    config = configparser.ConfigParser()
+    for filename in conf_files:
+        if os.path.isfile(filename):
+            try:
+                config.read(filename)
+                break
+            except (configparser.Error):
+                pass
+    else:
+        # We deliberately fail out here rather than try to
+        # exit gracefully, because we are severely misconfig'ed.
+        raise IOError('Config file not found')
+    return config
 
-def main():
+def main(argv):
     """
         Print the config that should go to each client into a file.
         Return True on success, False upon failure.
@@ -94,24 +106,10 @@ def main():
     parser.add_argument('--conf', type=str, required=True,
                         help='Config file',
                         dest='conffile', default=None)
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     if args.conffile is not None:
-        # Reads slightly weird, this is intentional for parallelism
-        # with other code, and maybe having multiple conf files.
-        conf_file = [args.conffile]
-        config = ConfigParser()
-        for filename in conf_file:
-            if os.path.isfile(filename):
-                try:
-                    config.read(filename)
-                    break
-                except:  # pylint: disable=bare-except
-                    # This bare-except is due to 2.7
-                    # limitations in configparser.
-                    pass
-        else:
-            raise IOError('Config file not found')
+        config = _ingest_config_from_file([args.conffile])
 
         # We use mozdef to log about activities.  However, for triage,
         # it is in our interest to keep records, real-time, on the server.
@@ -121,13 +119,13 @@ def main():
         try:
             log_to_stdout = config.getboolean('client-disconnect',
                                               'log-to-stdout')
-        except (NoOptionError, NoSectionError):  # pragma: no cover
+        except (configparser.NoOptionError, configparser.NoSectionError):
             log_to_stdout = False
 
         try:
             metrics_log_dir = config.get('client-disconnect',
                                          'metrics-log-dir')
-        except (NoOptionError, NoSectionError):  # pragma: no cover
+        except (configparser.NoOptionError, configparser.NoSectionError):
             metrics_log_dir = ''
         if not (os.path.isdir(metrics_log_dir) and
                 os.access(metrics_log_dir, os.W_OK)):
@@ -156,7 +154,7 @@ def main():
     if not usercn:
         print('No common_name or username environment variable provided.')
         return False
-    elif not trusted_ip:
+    if not trusted_ip:
         print('No trusted_ip environment variable provided.')
         return False
 
@@ -165,8 +163,7 @@ def main():
     return True
 
 
-if __name__ == '__main__':
-    if main():
+if __name__ == '__main__':  # pragma: no cover
+    if main(sys.argv):
         sys.exit(0)
-    else:
-        sys.exit(1)
+    sys.exit(1)
