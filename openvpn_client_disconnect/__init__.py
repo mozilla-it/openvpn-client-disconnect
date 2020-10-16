@@ -96,7 +96,7 @@ def _ingest_config_from_file(conf_files):
         raise IOError('Config file not found')
     return config
 
-def main(argv):
+def main_work(argv):
     """
         Print the config that should go to each client into a file.
         Return True on success, False upon failure.
@@ -162,8 +162,11 @@ def main(argv):
     log_to_mozdef(usercn, log_to_stdout)
     return True
 
-
-if __name__ == '__main__':  # pragma: no cover
-    if main(sys.argv):
+def main():
+    """ Interface to the outside """
+    if main_work(sys.argv):
         sys.exit(0)
     sys.exit(1)
+
+if __name__ == '__main__':  # pragma: no cover
+    main()

@@ -111,22 +111,35 @@ class TestClientDisconnect(unittest.TestCase):
         # This is a dumb test: we are just validating that syslog_convert was called:
         self.assertIn('msg1', fake_out.getvalue())
 
+    def test_20_main_main(self):
+        ''' Test the main() interface '''
+        with self.assertRaises(SystemExit) as exiting, \
+                mock.patch.object(self.openvpn_client_disconnect, 'main_work',
+                                  return_value=True):
+            self.openvpn_client_disconnect.main()
+        self.assertEqual(exiting.exception.code, 0)
+        with self.assertRaises(SystemExit) as exiting, \
+                mock.patch.object(self.openvpn_client_disconnect, 'main_work',
+                                  return_value=False):
+            self.openvpn_client_disconnect.main()
+        self.assertEqual(exiting.exception.code, 1)
+
     def test_20_main_blank(self):
         ''' With no conf file provided, bomb out '''
         with self.assertRaises(SystemExit) as exiting, \
                 mock.patch('sys.stderr', new=StringIO()):
-            self.openvpn_client_disconnect.main([])
+            self.openvpn_client_disconnect.main_work([])
         self.assertEqual(exiting.exception.code, 2)
 
     def test_21_main_with_bad_confs(self):
         ''' With bad conf files, bomb out '''
         with self.assertRaises(IOError), \
                 mock.patch('sys.stderr', new=StringIO()):
-            self.openvpn_client_disconnect.main(['script', '--conf', '/tmp/nofile'])
+            self.openvpn_client_disconnect.main_work(['script', '--conf', '/tmp/nofile'])
 
         with self.assertRaises(IOError), \
                 mock.patch('sys.stderr', new=StringIO()):
-            self.openvpn_client_disconnect.main(['script', '--conf', 'test/context.py'])
+            self.openvpn_client_disconnect.main_work(['script', '--conf', 'test/context.py'])
 
     def test_22_main_blank(self):
         ''' With envvars provided, bomb out '''
@@ -134,8 +147,8 @@ class TestClientDisconnect(unittest.TestCase):
         with mock.patch.object(self.openvpn_client_disconnect, '_ingest_config_from_file',
                                return_value=config), \
                 mock.patch('sys.stdout', new=StringIO()) as fake_out:
-            result = self.openvpn_client_disconnect.main(['script', '--conf', 'test/context.py'])
-        self.assertFalse(result, 'With no environmental variables, main must fail')
+            result = self.openvpn_client_disconnect.main_work(['script', '--conf', 'test/context.py'])
+        self.assertFalse(result, 'With no environmental variables, main_work must fail')
         self.assertIn('No common_name or username environment variable provided.',
                       fake_out.getvalue())
 
@@ -146,8 +159,8 @@ class TestClientDisconnect(unittest.TestCase):
         with mock.patch.object(self.openvpn_client_disconnect, '_ingest_config_from_file',
                                return_value=config), \
                 mock.patch('sys.stdout', new=StringIO()) as fake_out:
-            result = self.openvpn_client_disconnect.main(['script', '--conf', 'test/context.py'])
-        self.assertFalse(result, 'With not-all environmental variables, main must fail')
+            result = self.openvpn_client_disconnect.main_work(['script', '--conf', 'test/context.py'])
+        self.assertFalse(result, 'With not-all environmental variables, main_work must fail')
         self.assertIn('No trusted_ip environment variable provided.', fake_out.getvalue())
 
     def test_24_complete_vars(self):
@@ -161,7 +174,7 @@ class TestClientDisconnect(unittest.TestCase):
                                   'log_metrics_to_disk') as mock_metrics, \
                 mock.patch.object(self.openvpn_client_disconnect,
                                   'log_to_mozdef') as mock_mozdef:
-            result = self.openvpn_client_disconnect.main(['script', '--conf', 'test/context.py'])
-        self.assertTrue(result, 'With all environmental variables, main must work')
+            result = self.openvpn_client_disconnect.main_work(['script', '--conf', 'test/context.py'])
+        self.assertTrue(result, 'With all environmental variables, main_work must work')
         mock_metrics.assert_called_once_with('bob-device', None, set([]))
         mock_mozdef.assert_called_once_with('bob-device', False)
