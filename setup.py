@@ -48,5 +48,4 @@ setup(
     },
     long_description=open('README.md').read(),
     license="MPL",
-    install_requires=['mozdef-client-config'],
 )

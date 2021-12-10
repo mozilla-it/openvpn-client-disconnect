@@ -94,25 +94,6 @@ class TestClientDisconnect(unittest.TestCase):
         #file_handle.write.assert_called_with(expected_response)
         file_handle.write.assert_called_once()
 
-    def test_11_log_to_mozdef(self):
-        """ Validate that log_to_mozdef does the right things. """
-        with mock.patch('mozdef_client_config.ConfigedMozDefEvent') as mock_logger:
-            instance = mock_logger.return_value
-            with mock.patch.object(instance, 'send') as mock_send, \
-                    mock.patch.object(instance, 'syslog_convert', return_value='msg1'), \
-                    mock.patch('sys.stdout', new=StringIO()) as fake_out:
-                self.openvpn_client_disconnect.log_to_mozdef('blah1', True)
-
-        self.assertEqual(instance.category, 'authentication')
-        self.assertEqual(instance.source, 'openvpn')
-        self.assertIn('vpn', instance.tags)
-        self.assertIn('blah1', instance.summary)
-        self.assertEqual(instance.details['username'], 'blah1')
-        self.assertEqual(instance.details['success'], 'true')
-        mock_send.assert_called_once_with()
-        # This is a dumb test: we are just validating that syslog_convert was called:
-        self.assertIn('msg1', fake_out.getvalue())
-
     def test_11_log_event(self):
         """ Validate that log_event does the right things. """
         datetime_mock = mock.Mock(wraps=datetime.datetime)
@@ -206,14 +187,11 @@ class TestClientDisconnect(unittest.TestCase):
                 mock.patch.object(self.openvpn_client_disconnect,
                                   'log_metrics_to_disk') as mock_metrics, \
                 mock.patch.object(self.openvpn_client_disconnect,
-                                  'log_to_mozdef') as mock_mozdef, \
-                mock.patch.object(self.openvpn_client_disconnect,
                                   'log_event') as mock_logevent:
             result = self.openvpn_client_disconnect.main_work(['script', '--conf',
                                                                'test/context.py'])
         self.assertTrue(result, 'With all environmental variables, main_work must work')
         mock_metrics.assert_called_once_with('bob-device', None, set([]))
-        mock_mozdef.assert_called_once_with('bob-device', False)
         mock_logevent.assert_not_called()
 
     def test_25_complete_with_logging(self):
@@ -229,14 +207,11 @@ class TestClientDisconnect(unittest.TestCase):
                 mock.patch.object(self.openvpn_client_disconnect,
                                   'log_metrics_to_disk') as mock_metrics, \
                 mock.patch.object(self.openvpn_client_disconnect,
-                                  'log_to_mozdef') as mock_mozdef, \
-                mock.patch.object(self.openvpn_client_disconnect,
                                   'log_event') as mock_logevent:
             result = self.openvpn_client_disconnect.main_work(['script', '--conf',
                                                                'test/context.py'])
         self.assertTrue(result, 'With all environmental variables, main_work must work')
         mock_metrics.assert_called_once_with('bob-device', None, set([]))
-        mock_mozdef.assert_called_once_with('bob-device', False)
         mock_logevent.assert_called_once_with('bob-device', syslog.LOG_AUTH)
 
     def test_26_complete_with_logging(self):
@@ -252,12 +227,9 @@ class TestClientDisconnect(unittest.TestCase):
                 mock.patch.object(self.openvpn_client_disconnect,
                                   'log_metrics_to_disk') as mock_metrics, \
                 mock.patch.object(self.openvpn_client_disconnect,
-                                  'log_to_mozdef') as mock_mozdef, \
-                mock.patch.object(self.openvpn_client_disconnect,
                                   'log_event') as mock_logevent:
             result = self.openvpn_client_disconnect.main_work(['script', '--conf',
                                                                'test/context.py'])
         self.assertTrue(result, 'With all environmental variables, main_work must work')
         mock_metrics.assert_called_once_with('bob-device', None, set([]))
-        mock_mozdef.assert_called_once_with('bob-device', False)
         mock_logevent.assert_called_once_with('bob-device', syslog.LOG_MAIL)

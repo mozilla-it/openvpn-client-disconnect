@@ -11,7 +11,6 @@ import json
 import syslog
 from argparse import ArgumentParser
 import pytz
-import mozdef_client_config
 from six.moves import configparser
 sys.dont_write_bytecode = True
 
@@ -46,38 +45,6 @@ def log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested):
                                        indent=2))
         with open(outfile, 'w') as outhandle:
             outhandle.write(buf)
-
-
-def log_to_mozdef(usercn, log_to_stdout):
-    """
-        Gather the metrics we have in the environment,
-        send a disconnect event to mozdef.
-        Maybe also log it to stdout.
-    """
-    quick_metrics = {'sourceipaddress': os.environ.get('trusted_ip', ''),
-                     'sourceport': os.environ.get('trusted_port', ''),
-                     'vpnip': os.environ.get('ifconfig_pool_remote_ip', ''),
-                     'username': usercn,
-                     'connectionduration': os.environ.get('time_duration', ''),
-                     'bytessent': os.environ.get('bytes_sent', ''),
-                     'bytesreceived': os.environ.get('bytes_received', ''),
-                     'success': 'true'}
-
-    logger = mozdef_client_config.ConfigedMozDefEvent()
-    # While 'authorization' might seem more correct (we are layering
-    # access upon a user after they have been authenticated), we are
-    # asked to put all login-related info under the category of
-    # 'authentication'.  So, don't change this without an EIS consult.
-    logger.category = 'authentication'
-    logger.source = 'openvpn'
-    logger.tags = ['vpn', 'disconnect']
-
-    logger.summary = ('SUCCESS: VPN disconnection for '
-                      '{}'.format(usercn))
-    logger.details = quick_metrics
-    logger.send()
-    if log_to_stdout:
-        print(logger.syslog_convert())
 
 def log_event(usercn, log_facility):
     '''
@@ -142,17 +109,6 @@ def main_work(argv):
     if args.conffile is not None:
         config = _ingest_config_from_file([args.conffile])
 
-        # We use mozdef to log about activities.  However, for triage,
-        # it is in our interest to keep records, real-time, on the server.
-        # mozdef can do syslog, but that is a separate file from the vpn's
-        # activity log.  So, to put it all in one place, we can log to
-        # stdout.
-        try:
-            log_to_stdout = config.getboolean('client-disconnect',
-                                              'log-to-stdout')
-        except (configparser.NoOptionError, configparser.NoSectionError):
-            log_to_stdout = False
-
         try:
             metrics_log_dir = config.get('client-disconnect',
                                          'metrics-log-dir')
@@ -206,7 +162,6 @@ def main_work(argv):
         return False
 
     log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested)
-    log_to_mozdef(usercn, log_to_stdout)
     if event_send:
         log_event(usercn, event_facility)
     return True
