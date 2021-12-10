@@ -5,14 +5,15 @@ import os
 import sys
 import ast
 import time
+import datetime
+import socket
 import json
+import syslog
 from argparse import ArgumentParser
+import pytz
 import mozdef_client_config
+from six.moves import configparser
 sys.dont_write_bytecode = True
-try:
-    import configparser
-except ImportError:  # pragma: no cover
-    from six.moves import configparser
 
 
 ALWAYS_SHARE_METRICS = set(['common_name', 'time_unix'])
@@ -78,6 +79,36 @@ def log_to_mozdef(usercn, log_to_stdout):
     if log_to_stdout:
         print(logger.syslog_convert())
 
+def log_event(usercn, log_facility):
+    '''
+        Use the syslog module to log disconnection events.
+    '''
+    quick_metrics = {'sourceipaddress': os.environ.get('trusted_ip', ''),
+                     'sourceport': os.environ.get('trusted_port', ''),
+                     'vpnip': os.environ.get('ifconfig_pool_remote_ip', ''),
+                     'username': usercn,
+                     'connectionduration': os.environ.get('time_duration', ''),
+                     'bytessent': os.environ.get('bytes_sent', ''),
+                     'bytesreceived': os.environ.get('bytes_received', ''),
+                     'success': 'true'}
+
+    output_json = {
+        'hostname': socket.getfqdn(),
+        'processid': os.getpid(),
+        'processname': sys.argv[0],
+        'severity': 'INFO',
+        'timestamp': pytz.timezone('UTC').localize(datetime.datetime.utcnow()).isoformat(),
+        'category': 'authentication',
+        'source': 'openvpn',
+        'tags': ['vpn', 'disconnect'],
+        # Have to use pytz because py2 is terrible here.
+        'summary': 'SUCCESS: VPN disconnection for {}'.format(usercn),
+        'details': quick_metrics,
+    }
+    syslog_message = json.dumps(output_json)
+    syslog.openlog(facility=log_facility)
+    syslog.syslog(syslog_message)
+
 def _ingest_config_from_file(conf_files):
     """
         pull in config variables from a system file
@@ -140,6 +171,22 @@ def main_work(argv):
         if not isinstance(metrics_requested, set):  # pragma: no cover
             metrics_requested = set()
 
+        try:
+            event_send = config.getboolean('client-disconnect',
+                                           'syslog-events-send')
+        except (configparser.NoOptionError, configparser.NoSectionError):
+            event_send = False
+
+        try:
+            _base_facility = config.get('client-disconnect',
+                                        'syslog-events-facility')
+        except (configparser.NoOptionError, configparser.NoSectionError):
+            _base_facility = 'auth'
+        try:
+            event_facility = getattr(syslog, 'LOG_{}'.format(_base_facility.upper()))
+        except (AttributeError):
+            event_facility = syslog.LOG_AUTH
+
     # common_name is an environmental variable passed in:
     # "The X509 common name of an authenticated client."
     # https://openvpn.net/index.php/open-source/documentation/manuals/65-openvpn-20x-manpage.html
@@ -160,6 +207,8 @@ def main_work(argv):
 
     log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested)
     log_to_mozdef(usercn, log_to_stdout)
+    if event_send:
+        log_event(usercn, event_facility)
     return True
 
 def main():

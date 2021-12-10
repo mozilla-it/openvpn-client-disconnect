@@ -2,5 +2,7 @@
 # Section header
 
 metrics-log-dir = /var/spool/openvpn-metrics
-metrics = [ 'IV_COMP_STUB ', 'IV_COMP_STUBv2', 'IV_GUI_VER', 'IV_HWADDR', 'IV_LZ4', 'IV_LZ4v2', 'IV_LZO', 'IV_NCP', 'IV_PLAT', 'IV_PROTO', 'IV_SSL', 'IV_TCPNL', 'IV_VER', 'bytes_received', 'bytes_sent', 'time_duration', 'time_unix', 'common_name', 'ifconfig_pool_remote_ip', 'trusted_ip', 'trusted_port', 'link_mtu', 'tun_mtu', 'time_ascii', 'tls_digest_0', 'tls_id_0', 'tls_serial_0', 'proto_1']
+metrics = [ 'IV_COMP_STUB', 'IV_COMP_STUBv2', 'IV_GUI_VER', 'IV_HWADDR', 'IV_LZ4', 'IV_LZ4v2', 'IV_LZO', 'IV_NCP', 'IV_PLAT', 'IV_PROTO', 'IV_SSL', 'IV_TCPNL', 'IV_VER', 'bytes_received', 'bytes_sent', 'time_duration', 'time_unix', 'common_name', 'ifconfig_pool_remote_ip', 'trusted_ip', 'trusted_port', 'link_mtu', 'tun_mtu', 'time_ascii', 'tls_digest_0', 'tls_id_0', 'tls_serial_0', 'proto_1']
 
+syslog-events-send = true
+syslog-events-facility = local5
