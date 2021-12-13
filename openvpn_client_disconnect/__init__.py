@@ -50,27 +50,27 @@ def log_event(usercn, log_facility):
     '''
         Use the syslog module to log disconnection events.
     '''
-    quick_metrics = {'sourceipaddress': os.environ.get('trusted_ip', ''),
-                     'sourceport': os.environ.get('trusted_port', ''),
-                     'vpnip': os.environ.get('ifconfig_pool_remote_ip', ''),
-                     'username': usercn,
-                     'connectionduration': os.environ.get('time_duration', ''),
-                     'bytessent': os.environ.get('bytes_sent', ''),
+    quick_metrics = {'username': usercn,
                      'bytesreceived': os.environ.get('bytes_received', ''),
+                     'bytessent': os.environ.get('bytes_sent', ''),
+                     'vpnip': os.environ.get('ifconfig_pool_remote_ip', ''),
+                     'sourceport': os.environ.get('trusted_port', ''),
+                     'connectionduration': os.environ.get('time_duration', ''),
+                     'sourceipaddress': os.environ.get('trusted_ip', ''),
                      'success': 'true'}
 
     output_json = {
-        'hostname': socket.getfqdn(),
-        'processid': os.getpid(),
-        'processname': sys.argv[0],
-        'severity': 'INFO',
-        'timestamp': pytz.timezone('UTC').localize(datetime.datetime.utcnow()).isoformat(),
         'category': 'authentication',
-        'source': 'openvpn',
-        'tags': ['vpn', 'disconnect'],
+        'processid': os.getpid(),
+        'severity': 'INFO',
+        'processname': sys.argv[0],
         # Have to use pytz because py2 is terrible here.
-        'summary': 'SUCCESS: VPN disconnection for {}'.format(usercn),
+        'timestamp': pytz.timezone('UTC').localize(datetime.datetime.utcnow()).isoformat(),
         'details': quick_metrics,
+        'hostname': socket.getfqdn(),
+        'summary': 'SUCCESS: VPN disconnection for {}'.format(usercn),
+        'tags': ['vpn', 'disconnect'],
+        'source': 'openvpn',
     }
     syslog_message = json.dumps(output_json)
     syslog.openlog(facility=log_facility)
