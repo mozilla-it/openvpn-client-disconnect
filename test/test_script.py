@@ -5,6 +5,7 @@ import os
 import sys
 import syslog
 import datetime
+import json
 import test.context  # pylint: disable=unused-import
 import mock
 from six.moves import configparser
@@ -110,18 +111,28 @@ class TestClientDisconnect(unittest.TestCase):
                 mock.patch('os.getpid', return_value=12345), \
                 mock.patch('socket.getfqdn', return_value='my.host.name'):
             self.openvpn_client_disconnect.log_event('someone@example.com', syslog.LOG_LOCAL0)
-
-        logstr = ('{"category": "authentication", "processid": 12345, "severity": "INFO", '
-                  '"processname": "python -m unittest", '
-                  '"timestamp": "2020-12-25T13:14:15.123456+00:00", '
-                  '"details": {"username": "someone@example.com", "bytesreceived": "1234", '
-                  '"bytessent": "34", "vpnip": "192.168.50.2", "sourceport": "9999", '
-                  '"connectionduration": "300", "sourceipaddress": "1.2.3.4", "success": "true"}, '
-                  '"hostname": "my.host.name", '
-                  '"summary": "SUCCESS: VPN disconnection for someone@example.com", '
-                  '"tags": ["vpn", "disconnect"], "source": "openvpn"}')
         mock_openlog.assert_called_once_with(facility=syslog.LOG_LOCAL0)
-        mock_syslog.assert_called_once_with(logstr)
+        mock_syslog.assert_called_once()
+        arg_passed_in = mock_syslog.call_args_list[0][0][0]
+        json_sent = json.loads(arg_passed_in)
+        details = json_sent['details']
+        self.assertEqual(json_sent['category'], 'authentication')
+        self.assertEqual(json_sent['processid'], 12345)
+        self.assertEqual(json_sent['severity'], 'INFO')
+        self.assertIn('processname', json_sent)
+        self.assertEqual(json_sent['timestamp'], '2020-12-25T13:14:15.123456+00:00')
+        self.assertEqual(json_sent['hostname'], 'my.host.name')
+        self.assertEqual(json_sent['summary'], 'SUCCESS: VPN disconnection for someone@example.com')
+        self.assertEqual(json_sent['source'], 'openvpn')
+        self.assertEqual(json_sent['tags'], ['vpn', 'disconnect'])
+        self.assertEqual(details['username'], 'someone@example.com')
+        self.assertEqual(details['bytesreceived'], '1234')
+        self.assertEqual(details['bytessent'], '34')
+        self.assertEqual(details['vpnip'], '192.168.50.2')
+        self.assertEqual(details['sourceport'], '9999')
+        self.assertEqual(details['connectionduration'], '300')
+        self.assertEqual(details['sourceipaddress'], '1.2.3.4')
+        self.assertEqual(details['success'], 'true')
 
     def test_20_main_main(self):
         ''' Test the main() interface '''
