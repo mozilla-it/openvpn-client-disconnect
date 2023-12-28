@@ -2,18 +2,14 @@
 
 import unittest
 import os
-import sys
+from io import StringIO
 import syslog
 import datetime
 import json
+import configparser
 import test.context  # pylint: disable=unused-import
 import mock
-from six.moves import configparser
 import openvpn_client_disconnect
-if sys.version_info.major >= 3:
-    from io import StringIO  # pragma: no cover
-else:
-    from io import BytesIO as StringIO  # pragma: no cover
 
 
 class TestClientDisconnect(unittest.TestCase):

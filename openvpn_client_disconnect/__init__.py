@@ -10,8 +10,8 @@ import socket
 import json
 import syslog
 from argparse import ArgumentParser
+import configparser
 import pytz
-from six.moves import configparser
 sys.dont_write_bytecode = True
 
 
