@@ -11,7 +11,6 @@ import json
 import syslog
 from argparse import ArgumentParser
 import configparser
-import pytz
 sys.dont_write_bytecode = True
 
 
@@ -64,8 +63,7 @@ def log_event(usercn, log_facility):
         'processid': os.getpid(),
         'severity': 'INFO',
         'processname': sys.argv[0],
-        # Have to use pytz because py2 is terrible here.
-        'timestamp': pytz.timezone('UTC').localize(datetime.datetime.utcnow()).isoformat(),
+        'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
         'details': quick_metrics,
         'hostname': socket.getfqdn(),
         'summary': 'SUCCESS: VPN disconnection for {}'.format(usercn),

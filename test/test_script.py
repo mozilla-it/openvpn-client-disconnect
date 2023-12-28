@@ -94,7 +94,7 @@ class TestClientDisconnect(unittest.TestCase):
     def test_11_log_event(self):
         """ Validate that log_event does the right things. """
         datetime_mock = mock.Mock(wraps=datetime.datetime)
-        datetime_mock.utcnow.return_value = datetime.datetime(2020, 12, 25, 13, 14, 15, 123456)
+        datetime_mock.now.return_value = datetime.datetime(2020, 12, 25, 13, 14, 15, 123456, tzinfo=datetime.timezone.utc)
         os.environ['trusted_ip'] = '1.2.3.4'
         os.environ['trusted_port'] = '9999'
         os.environ['ifconfig_pool_remote_ip'] = '192.168.50.2'
