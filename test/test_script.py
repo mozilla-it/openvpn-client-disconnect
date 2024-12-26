@@ -83,15 +83,12 @@ class TestClientDisconnect(unittest.TestCase):
                                                                set(['common_name', 'time_unix',
                                                                     'something1', 'password']))
         file_handle = mock_open.return_value.__enter__.return_value
-        # This test fails under py2 for spacing reason but is otherwise good.
-        # Bring back when we drop py2 support:
-        #expected_response = ('{\n'
-        #                     '  "common_name": "bob-device",\n'
-        #                     '  "something1": "foo",\n'
-        #                     '  "time_unix": "1591193143"\n'
-        #                     '}\n')
-        #file_handle.write.assert_called_with(expected_response)
-        file_handle.write.assert_called_once()
+        expected_response = ('{\n'
+                             '  "common_name": "bob-device",\n'
+                             '  "something1": "foo",\n'
+                             '  "time_unix": "1591193143"\n'
+                             '}\n')
+        file_handle.write.assert_called_with(expected_response)
 
     def test_11_log_event(self):
         """ Validate that log_event does the right things. """
