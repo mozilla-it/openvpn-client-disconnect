@@ -34,15 +34,12 @@ def log_metrics_to_disk(usercn, metrics_log_dir, metrics_requested):
     if metrics_log_dir:
         epoch_seconds = int(directory_log.get('time_unix'))
         date = time.strftime('%Y%m%d%H%M%S', time.gmtime(epoch_seconds))
-        filename = 'log.{usercn}.{date}.json'.format(usercn=usercn,
-                                                     date=date)
+        filename = f'log.{usercn}.{date}.json'
         # Future tweak: ability to change the filename structure?
-        outfile = '{path}/{filename}'.format(path=metrics_log_dir,
-                                             filename=filename)
-        buf = '{}\n'.format(json.dumps(directory_log,
-                                       sort_keys=True,
-                                       indent=2))
-        with open(outfile, 'w') as outhandle:
+        outfile = f'{metrics_log_dir}/{filename}'
+        js_dump = json.dumps(directory_log, sort_keys=True, indent=2)
+        buf = f'{js_dump}\n'
+        with open(outfile, 'w', encoding='utf-8') as outhandle:
             outhandle.write(buf)
 
 def log_event(usercn, log_facility):
@@ -66,7 +63,7 @@ def log_event(usercn, log_facility):
         'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
         'details': quick_metrics,
         'hostname': socket.getfqdn(),
-        'summary': 'SUCCESS: VPN disconnection for {}'.format(usercn),
+        'summary': f'SUCCESS: VPN disconnection for {usercn}',
         'tags': ['vpn', 'disconnect'],
         'source': 'openvpn',
     }
@@ -104,6 +101,8 @@ def main_work(argv):
                         dest='conffile', default=None)
     args = parser.parse_args(argv[1:])
 
+    event_send = False
+    event_facility = syslog.LOG_AUTH
     if args.conffile is not None:
         config = _ingest_config_from_file([args.conffile])
 
@@ -129,17 +128,17 @@ def main_work(argv):
             event_send = config.getboolean('client-disconnect',
                                            'syslog-events-send')
         except (configparser.NoOptionError, configparser.NoSectionError):
-            event_send = False
+            pass
 
         try:
             _base_facility = config.get('client-disconnect',
-                                        'syslog-events-facility')
+                                        'syslog-events-facility').upper()
         except (configparser.NoOptionError, configparser.NoSectionError):
-            _base_facility = 'auth'
+            _base_facility = 'AUTH'
         try:
-            event_facility = getattr(syslog, 'LOG_{}'.format(_base_facility.upper()))
+            event_facility = getattr(syslog, f'LOG_{_base_facility}')
         except (AttributeError):
-            event_facility = syslog.LOG_AUTH
+            pass
 
     # common_name is an environmental variable passed in:
     # "The X509 common name of an authenticated client."

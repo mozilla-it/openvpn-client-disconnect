@@ -51,7 +51,7 @@ class TestClientDisconnect(unittest.TestCase):
     def test_06_ingest_config_from_file(self):
         """ With an actual config file, get a populated ConfigParser """
         test_reading_file = '/tmp/test-reader.txt'  # nosec hardcoded_tmp_directory
-        with open(test_reading_file, 'w') as filepointer:
+        with open(test_reading_file, 'w', encoding='utf-8') as filepointer:
             filepointer.write('[aa]\nbb = cc\n')
         filepointer.close()
         result = self.openvpn_client_disconnect._ingest_config_from_file([test_reading_file])
@@ -96,7 +96,8 @@ class TestClientDisconnect(unittest.TestCase):
     def test_11_log_event(self):
         """ Validate that log_event does the right things. """
         datetime_mock = mock.Mock(wraps=datetime.datetime)
-        datetime_mock.now.return_value = datetime.datetime(2020, 12, 25, 13, 14, 15, 123456, tzinfo=datetime.timezone.utc)
+        datetime_mock.now.return_value = datetime.datetime(2020, 12, 25, 13, 14, 15,
+                                                           123456, tzinfo=datetime.timezone.utc)
         os.environ['trusted_ip'] = '1.2.3.4'
         os.environ['trusted_port'] = '9999'
         os.environ['ifconfig_pool_remote_ip'] = '192.168.50.2'
