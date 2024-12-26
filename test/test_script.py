@@ -39,7 +39,8 @@ class TestClientDisconnect(unittest.TestCase):
         """ With all missing config files, get an empty ConfigParser """
         with self.assertRaises(IOError), \
                 mock.patch('sys.stderr', new=StringIO()):
-            self.openvpn_client_disconnect._ingest_config_from_file(['/tmp/no-such-file.txt'])
+            _not_a_real_file = '/tmp/no-such-file.txt'  # nosec hardcoded_tmp_directory
+            self.openvpn_client_disconnect._ingest_config_from_file([_not_a_real_file])
 
     def test_05_ingest_bad_config_file(self):
         """ With a bad config file, get an empty ConfigParser """
@@ -49,11 +50,11 @@ class TestClientDisconnect(unittest.TestCase):
 
     def test_06_ingest_config_from_file(self):
         """ With an actual config file, get a populated ConfigParser """
-        test_reading_file = '/tmp/test-reader.txt'
+        test_reading_file = '/tmp/test-reader.txt'  # nosec hardcoded_tmp_directory
         with open(test_reading_file, 'w') as filepointer:
             filepointer.write('[aa]\nbb = cc\n')
         filepointer.close()
-        result = self.openvpn_client_disconnect._ingest_config_from_file(['/tmp/test-reader.txt'])
+        result = self.openvpn_client_disconnect._ingest_config_from_file([test_reading_file])
         os.remove(test_reading_file)
         self.assertIsInstance(result, configparser.ConfigParser,
                               'Did not create a config object')
@@ -74,10 +75,11 @@ class TestClientDisconnect(unittest.TestCase):
         os.environ['time_unix'] = '1591193143'
         os.environ['something1'] = 'foo'
         os.environ['something2'] = 'bar'
-        os.environ['password'] = 'hunter2'
+        os.environ['password'] = 'hunter2'  # nosec hardcoded_password_string
         with mock.patch('openvpn_client_disconnect.open', create=True,
                         return_value=mock.MagicMock(spec=StringIO())) as mock_open:
-            self.openvpn_client_disconnect.log_metrics_to_disk('bob', '/tmp',
+            _tmp_dir = '/tmp'  # nosec hardcoded_tmp_directory
+            self.openvpn_client_disconnect.log_metrics_to_disk('bob', _tmp_dir,
                                                                set(['common_name', 'time_unix',
                                                                     'something1', 'password']))
         file_handle = mock_open.return_value.__enter__.return_value
@@ -154,7 +156,8 @@ class TestClientDisconnect(unittest.TestCase):
         ''' With bad conf files, bomb out '''
         with self.assertRaises(IOError), \
                 mock.patch('sys.stderr', new=StringIO()):
-            self.openvpn_client_disconnect.main_work(['script', '--conf', '/tmp/nofile'])
+            _not_a_real_file = '/tmp/no-such-file.txt'  # nosec hardcoded_tmp_directory
+            self.openvpn_client_disconnect.main_work(['script', '--conf', _not_a_real_file])
 
         with self.assertRaises(IOError), \
                 mock.patch('sys.stderr', new=StringIO()):
